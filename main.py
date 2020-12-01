@@ -13,6 +13,7 @@ from sklearn.tree import DecisionTreeClassifier
 from sklearn.svm import SVC
 from sklearn.neural_network import MLPClassifier, BernoulliRBM
 from keras.layers import Dense, Dropout, Flatten, Input
+import keras
 import warnings
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
@@ -95,6 +96,23 @@ def makeExperiment(expX, expY, expClf):
 
     print(np.mean(results))
 
+def build_mlp(data, y):
+    # Create model architecture
+    model = keras.Sequential()
+    model.add(Input(shape=data.shape[1:]))
+
+    model.add(Dense(64, activation="relu"))
+    model.add(Dropout(0.2))
+
+    model.add(Dense(8, activation="relu", name="result"))
+    model.add(Dropout(0.2))
+
+    model.add(Dense(len(np.unique(y)), activation="softmax"))
+
+    model.compile(loss="categorical_crossentropy", optimizer="rmsprop",
+                  metrics=["accuracy"])
+    return model
+
 
 # MMO
 pca = PCA(n_components=15)
@@ -115,11 +133,14 @@ ys = [synthetic2ClassY, synthetic3ClassY, synthetic2ClassUnbalancedY, synthetic3
 
 # bez ekstrakcji
 for i in [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1500, 2000, 2500, 3000, 3500, 4000, 4500, 5000]:
-    for _, clf in enumerate(clfs):
-        print(clf)
-        for i, x in enumerate(Xs):
-            print(i)
-            makeExperiment(x, ys[i], clf)
+    for i, x in enumerate(Xs):
+        print(i)
+        # for _, clf in enumerate(clfs):
+        #     print(clf)
+        #     makeExperiment(x, ys[i], clf)
+        print('mlp')
+        model = build_mlp(x,ys[i])
+        makeExperiment(x, ys[i], model)
 
     # z ekstrakcja
     for _, clf in enumerate(clfs):
