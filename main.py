@@ -1,5 +1,6 @@
 import csv
-from varname import nameof
+
+from tensorflow.keras import layers
 import numpy as np
 from sklearn.datasets import make_classification
 from sklearn.decomposition import PCA
@@ -10,8 +11,8 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.naive_bayes import GaussianNB
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.svm import SVC
-from sklearn.neural_network import MLPClassifier
-
+from sklearn.neural_network import MLPClassifier, BernoulliRBM
+from keras.layers import Dense, Dropout, Flatten, Input
 import warnings
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
@@ -26,41 +27,36 @@ y = fileData[1:, 17].astype(float)
 
 # DANE SYNTETYCZNE
 synthetic2ClassX, synthetic2ClassY = make_classification(
-    n_samples=5000,
+    n_samples=1000,
     n_classes=2,
-    n_features=10,
-    n_redundant=2,
+    n_features=5000,
     random_state=1410
 )
 
 synthetic3ClassX, synthetic3ClassY = make_classification(
-    n_samples=5000,
+    n_samples=1000,
     n_classes=3,
-    n_clusters_per_class=2,
-    n_informative=5,
-    n_features=10,
-    n_redundant=2,
+    n_clusters_per_class=1,
+    n_features=5000,
     random_state=1410
 )
 
 synthetic2ClassUnbalancedX, synthetic2ClassUnbalancedY = make_classification(
-    n_samples=5000,
+    n_samples=1000,
     n_classes=2,
     weights=[0.3, 0.7],
     n_clusters_per_class=2,
-    n_features=10,
+    n_features=5000,
     n_redundant=2,
     random_state=1410
 )
 
 synthetic3ClassUnbalancedX, synthetic3ClassUnbalancedY = make_classification(
-    n_samples=5000,
+    n_samples=1000,
     n_classes=3,
-    weights=[0.1,0.6,0.3],
-    n_clusters_per_class=2,
-    n_informative=5,
-    n_features=10,
-    n_redundant=2,
+    n_clusters_per_class=1,
+    weights=[0.1, 0.6, 0.3],
+    n_features=5000,
     random_state=1410
 )
 ##############
@@ -69,8 +65,6 @@ synthetic3ClassUnbalancedX, synthetic3ClassUnbalancedY = make_classification(
 # print(y, y.shape)
 # print(X, X.shape)
 
-pca = PCA(n_components=15)
-extractedXPCA = pca.fit_transform(X)
 
 # lda = LinearDiscriminantAnalysis(n_components=15)
 # extractedDataLDA = lda.fit_transform(data, classes)
@@ -81,8 +75,10 @@ gnb = GaussianNB()
 cart = DecisionTreeClassifier(random_state=0)
 svc = SVC()
 mlp = MLPClassifier()
-# + 2 inne sieci
 
+
+# + 2 inne sieci
+clfs = [knn, gnb, cart, svc, mlp ]
 
 def makeExperiment(expX, expY, expClf):
     kf = RepeatedStratifiedKFold(n_splits=5, n_repeats=1, random_state=1410)
@@ -100,28 +96,38 @@ def makeExperiment(expX, expY, expClf):
     print(np.mean(results))
 
 
-clfs = [knn, gnb, cart, svc, mlp]
+# MMO
+pca = PCA(n_components=15)
+pca.fit(X[:round(len(X) * 0.8)])
+extractedXPCA = pca.transform(X)
+
 Xs = [X, extractedXPCA]
 
 for _, clf in enumerate(clfs):
-    for _, x in enumerate(Xs):
-        makeExperiment(x, y, clf)
-
-
-# dane syntetyczne
-Xs = [synthetic2ClassX, synthetic3ClassX, synthetic2ClassUnbalancedX, synthetic3ClassUnbalancedX]
-ys = [synthetic2ClassY, synthetic3ClassY, synthetic2ClassUnbalancedY, synthetic3ClassUnbalancedY,
-      synthetic2ClassY, synthetic3ClassY, synthetic2ClassUnbalancedY, synthetic3ClassUnbalancedY]
-
-for _, clf in enumerate(clfs):
-    print(clf.__class__)
+    print(clf)
     for i, x in enumerate(Xs):
         print(i)
-        if i >= len(Xs):
+        makeExperiment(x, y, clf)
+
+# dane syntetyczne PON
+Xs = [synthetic2ClassX, synthetic3ClassX, synthetic2ClassUnbalancedX, synthetic3ClassUnbalancedX]
+ys = [synthetic2ClassY, synthetic3ClassY, synthetic2ClassUnbalancedY, synthetic3ClassUnbalancedY]
+
+# bez ekstrakcji
+for i in [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1500, 2000, 2500, 3000, 3500, 4000, 4500, 5000]:
+    for _, clf in enumerate(clfs):
+        print(clf)
+        for i, x in enumerate(Xs):
+            print(i)
+            makeExperiment(x, ys[i], clf)
+
+    # z ekstrakcja
+    for _, clf in enumerate(clfs):
+        print(clf)
+        for i, x in enumerate(Xs):
+            print(i)
             print('EXTRACTED')
-            pca = PCA(n_components=3)
-            extractedX = pca.fit_transform(x);
-            x = extractedX
-        makeExperiment(x, ys[i], clf)
-
-
+            pca = PCA(n_components=100)
+            pca.fit(x[:round(len(x) * 0.8)])
+            extractedX = pca.transform(x);
+            makeExperiment(extractedX, ys[i], clf)
