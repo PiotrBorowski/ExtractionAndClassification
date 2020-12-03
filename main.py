@@ -1,10 +1,9 @@
 import csv
+import sys
 
-from tensorflow.keras import layers
 import numpy as np
 from sklearn.datasets import make_classification
 from sklearn.decomposition import PCA
-from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from sklearn.metrics import accuracy_score
 from sklearn.model_selection import RepeatedStratifiedKFold
 from sklearn.neighbors import KNeighborsClassifier
@@ -15,8 +14,24 @@ from sklearn.neural_network import MLPClassifier, BernoulliRBM
 from keras.layers import Dense, Dropout, Flatten, Input
 import keras
 import warnings
+from datetime import datetime
+
+
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
+
+def print_to_file(text):
+    with open('result.txt', 'a') as f:
+        print(text)
+        sys.stdout = f
+        print(text)
+        sys.stdout = original_stdout
+
+original_stdout = sys.stdout
+print_to_file("\n\n\n---------------------------------- NEW TEST - "
+              + datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+              + " ----------------------------------\n\n\n")
+
 
 with open('./parkinsons.data', newline='') as f:
     reader = csv.reader(f)
@@ -94,7 +109,7 @@ def makeExperiment(expX, expY, expClf):
         score = accuracy_score(y_test, result)
         results.append(score)
 
-    print(np.mean(results))
+    print_to_file(np.mean(results))
 
 def build_mlp(data, y):
     # Create model architecture
@@ -114,6 +129,9 @@ def build_mlp(data, y):
     return model
 
 
+
+
+
 # MMO
 pca = PCA(n_components=15)
 pca.fit(X[:round(len(X) * 0.8)])
@@ -122,9 +140,9 @@ extractedXPCA = pca.transform(X)
 Xs = [X, extractedXPCA]
 
 for _, clf in enumerate(clfs):
-    print(clf)
+    print_to_file(clf)
     for i, x in enumerate(Xs):
-        print(i)
+        print_to_file(i)
         makeExperiment(x, y, clf)
 
 # dane syntetyczne PON
@@ -134,20 +152,20 @@ ys = [synthetic2ClassY, synthetic3ClassY, synthetic2ClassUnbalancedY, synthetic3
 # bez ekstrakcji
 for i in [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1500, 2000, 2500, 3000, 3500, 4000, 4500, 5000]:
     for i, x in enumerate(Xs):
-        print(i)
+        print_to_file(i)
         # for _, clf in enumerate(clfs):
         #     print(clf)
         #     makeExperiment(x, ys[i], clf)
-        print('mlp')
+        print_to_file('mlp')
         model = build_mlp(x,ys[i])
         makeExperiment(x, ys[i], model)
 
     # z ekstrakcja
     for _, clf in enumerate(clfs):
-        print(clf)
+        print_to_file(clf)
         for i, x in enumerate(Xs):
-            print(i)
-            print('EXTRACTED')
+            print_to_file(i)
+            print_to_file('EXTRACTED')
             pca = PCA(n_components=100)
             pca.fit(x[:round(len(x) * 0.8)])
             extractedX = pca.transform(x);
