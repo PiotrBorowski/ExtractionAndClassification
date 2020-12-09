@@ -4,14 +4,17 @@ import sys
 import numpy as np
 from sklearn.datasets import make_classification
 from sklearn.decomposition import PCA
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import accuracy_score, balanced_accuracy_score
 from sklearn.model_selection import RepeatedStratifiedKFold
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.naive_bayes import GaussianNB
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.svm import SVC
-from sklearn.neural_network import MLPClassifier, BernoulliRBM
-from keras.layers import Dense, Dropout, Flatten, Input
+from sklearn.neural_network import MLPClassifier
+from keras.layers import Dense, Dropout, Input
+from scipy.stats import ttest_ind
+from tabulate import tabulate
+
 import keras
 import warnings
 from datetime import datetime
@@ -96,9 +99,13 @@ mlp = MLPClassifier()
 # + 2 inne sieci
 clfs = [knn, gnb, cart, svc, mlp ]
 
+clfsResults = []
+clfsResultsBalanced = []
+
 def makeExperiment(expX, expY, expClf):
     kf = RepeatedStratifiedKFold(n_splits=5, n_repeats=1, random_state=1410)
     results = []
+    balancedResults = []
 
     for train_index, test_index in kf.split(expX, expY):
         X_train, X_test = expX[train_index], expX[test_index]
@@ -107,9 +114,15 @@ def makeExperiment(expX, expY, expClf):
         result = expClf.predict(X_test)
 
         score = accuracy_score(y_test, result)
+        balanced_score = balanced_accuracy_score(y_test, result)
         results.append(score)
+        balancedResults.append(balanced_score)
 
-    print_to_file(np.mean(results))
+    print_to_file(results)
+    clfsResults.append(results)
+    print_to_file(balancedResults)
+    clfsResultsBalanced.append(balancedResults)
+
 
 def build_mlp(data, y):
     # Create model architecture
@@ -130,8 +143,6 @@ def build_mlp(data, y):
 
 
 
-
-
 # MMO
 pca = PCA(n_components=15)
 pca.fit(X[:round(len(X) * 0.8)])
@@ -145,6 +156,32 @@ for _, clf in enumerate(clfs):
         print_to_file(i)
         makeExperiment(x, y, clf)
 
+def test(x):
+    t_statistic = np.zeros((len(clfs), len(clfs)))
+    p_value = np.zeros((len(clfs), len(clfs)))
+    for i in range(len(clfs)):
+        for j in range(len(clfs)):
+            t_statistic[i, j], p_value[i, j] = ttest_ind(x[i], x[j])
+
+    return t_statistic, p_value
+
+
+
+def printTest(t, p):
+    headers = ['knn', 'gnb', 'cart', 'svc', 'mlp' ]
+    names_column = [['knn'], ['gnb'], ['cart'], ['svc'], ['mlp'] ]
+    t_statistic_table = np.concatenate((names_column, t), axis=1)
+    t_statistic_table = tabulate(t_statistic_table, headers, floatfmt=".2f")
+    p_value_table = np.concatenate((names_column, p), axis=1)
+    p_value_table = tabulate(p_value_table, headers, floatfmt=".2f")
+    print("t-statistic:\n", t_statistic_table, "\n\np-value:\n", p_value_table)
+
+
+printTest(*test(clfsResults))
+print('---------------------')
+printTest(*test(clfsResultsBalanced))
+
+exit()
 # dane syntetyczne PON
 Xs = [synthetic2ClassX, synthetic3ClassX, synthetic2ClassUnbalancedX, synthetic3ClassUnbalancedX]
 ys = [synthetic2ClassY, synthetic3ClassY, synthetic2ClassUnbalancedY, synthetic3ClassUnbalancedY]
